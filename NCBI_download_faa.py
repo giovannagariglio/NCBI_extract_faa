@@ -1,4 +1,7 @@
-from ftplib import FTP
+from ftplib import FTP, error_perm
+import urllib.request as request
+import urllib.error
+from contextlib import closing
 import sys, os, shutil
 #import gzip
 
@@ -18,7 +21,7 @@ while " " in bacteria: # checks if the argument was properly passed
 os_cwd = os.getcwd() # get os current working directory
 
 print("Connecting to NCBI's FTP server...")
-ftp = FTP('ftp.ncbi.nlm.nih.gov', timeout=900) # connect to host, default port
+ftp = FTP('ftp.ncbi.nlm.nih.gov', timeout=900) # connect to host, default port; the high timeout allows for the code to run even if connection is poor
 ftp.login() # user anonymous, passwd anonymous@
 
 print("Connected.")
@@ -33,6 +36,7 @@ while True: # allows the user to try different species names until they succeed 
 		bacteria = input("Species name: ")
 ftp_origin = ftp.pwd() # here, ftp_origin means the folder in which all available strains can be found
 
+
 print("Success. Getting strains...")
 list_of_strains = ftp.nlst() # creates a list with all available strains in the directory
 print("Strain list retrieved.")
@@ -41,6 +45,7 @@ print("Strain list retrieved.")
 protein_folder = bacteria + "_faa"
 print("Creating bacteria faa directory (" + protein_folder +") in current OS directory...")
 protein_dir = protein_folder
+ftp.close()
 
 attempts = 0
 while True:
@@ -63,15 +68,13 @@ for dir_name in list_of_strains:
 for counter, strain in enumerate(list_of_strains):
 	try:
 		print("Downloading " + strain + " faa file...")
-		ftp.cwd(ftp_origin + "/" + strain) # changes to strain's directory
-		filename = strain + "_protein.faa.gz" # sets target file name
-		with open(filename, "wb") as f: # opens and closes target file
-			ftp.retrbinary('RETR '+ filename, f.write) # downloads target file while open
-		print("File " + str(counter + 1) + " out of " + str(len(list_of_strains)) + " successfully downloaded.")
-		print()
-	except Exception as e: # ensures the code keeps running even if a strain doesn't have an available faa file
-		print("FASTA file for " + strain + " not extracted: an error occurred. Reason:")
-		print(str(e))
-		print()
+		local_name = strain + "_protein.faa.gz"
+		file_url = "https://ftp.ncbi.nlm.nih.gov" + ftp_origin + "/" + strain + "/" + local_name
+		with closing(request.urlopen(file_url)) as r:
+			with open(local_name, 'wb') as f:
+				shutil.copyfileobj(r, f)
+		print("File " + str(counter + 1) + " out of " + str(len(list_of_strains)) + " successfully downloaded. \n")
+	except urllib.error.HTTPError: # ensures the code keeps running even if a strain doesn't have an available faa file
+		print("There are no available faa files for " + strain + ". \n")
 
 print("Downloads completed.")
