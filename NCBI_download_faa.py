@@ -1,6 +1,5 @@
 from ftplib import FTP, error_perm
-import urllib.request as request
-import urllib.error
+from urllib import request, error
 from contextlib import closing
 import sys, os, shutil
 #import gzip
@@ -39,13 +38,13 @@ ftp_origin = ftp.pwd() # here, ftp_origin means the folder in which all availabl
 
 print("Success. Getting strains...")
 list_of_strains = ftp.nlst() # creates a list with all available strains in the directory
-print("Strain list retrieved.")
+print("Strain list retrieved. Closing FTP connection...")
+ftp.close()
 
 # the following code creates an OS directory to store downloaded faa files 
 protein_folder = bacteria + "_faa"
-print("Creating bacteria faa directory (" + protein_folder +") in current OS directory...")
+print("Connection closed. Creating bacteria faa directory (" + protein_folder +") in current OS directory...")
 protein_dir = protein_folder
-ftp.close()
 
 attempts = 0
 while True:
@@ -56,8 +55,7 @@ while True:
 		attempts = attempts + 1
 		protein_dir = protein_folder + "_" + str(attempts)
 
-print("Folder successfully created. Starting downloads...")
-print()
+print("Folder successfully created. Starting downloads... \n")
 os.chdir(protein_dir)
 
 for dir_name in list_of_strains:
@@ -74,7 +72,7 @@ for counter, strain in enumerate(list_of_strains):
 			with open(local_name, 'wb') as f:
 				shutil.copyfileobj(r, f)
 		print("File " + str(counter + 1) + " out of " + str(len(list_of_strains)) + " successfully downloaded. \n")
-	except urllib.error.HTTPError: # ensures the code keeps running even if a strain doesn't have an available faa file
+	except error.HTTPError: # ensures the code keeps running even if a strain doesn't have an available faa file
 		print("There are no available faa files for " + strain + ". \n")
 
 print("Downloads completed.")
